@@ -3,7 +3,9 @@ import argparse
 import os
 import re
 import mimetypes
+import sys
 from urllib.request import url2pathname
+from urllib.parse import unquote, quote
 
 
 class Server(object):
@@ -43,10 +45,20 @@ class RequestHandler(object):
             if os.path.isdir(path):
                 if not path.endswith('/'):
                     return HttpResponse(301, None, {'Location': url_path + '/'})
-
-                files = ''.join('<li><a href="{0}">{0}</a>'.format(p) for p in os.listdir(path))
+                try:
+                    directory_name = unquote(url_path, errors='surrogatepass')
+                except UnicodeDecodeError:
+                    directory_name = unquote(url_path)
+                files = ''.join(
+                    '<li><a href="{}">{}</a>'.
+                    format(quote(p, errors='surrogatepass'),
+                           unquote(p + '/' if os.path.isdir(p) else p, errors='surrogatepass'))
+                    for p in sorted(os.listdir(path), key=lambda a: a.lower())
+                )
                 headers = {'Content-Type': 'text/html'}
-                return HttpResponse(200, '<h2>{}</h2><hr><ul>{}</ul><hr>'.format(path, files), headers)
+                template = '<head><meta charset="{}"></head><h2>Directory listing for {}</h2><hr><ul>{}</ul><hr>'
+                enc = sys.getfilesystemencoding()
+                return HttpResponse(200, template.format(enc, directory_name, files), headers)
 
             content_type, _ = mimetypes.guess_type(path)
             content_type = content_type if content_type else 'application/octet-stream'
@@ -79,7 +91,8 @@ class HttpResponse(object):
     def dump(self):
         template = "HTTP/1.1 {}\nConnection: close\n{}\n\n{}\n"
         headers = '\n'.join('{}: {}'.format(k, self.headers[k]) for k in self.headers)
-        return template.format(self.code, headers, self.body).encode()
+        enc = sys.getfilesystemencoding()
+        return template.format(self.code, headers, self.body).encode(enc, 'surrogateescape')
 
 
 def _get_args():
