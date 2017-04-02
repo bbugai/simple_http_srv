@@ -29,7 +29,7 @@ class RequestHandler(object):
     def handle(request):
         index = RequestHandler._index()
         if index:
-            return HttpResponse(200, index, )
+            return HttpResponse(200, index, {'Content-Type': 'text/html'})
         else:
             matches = re.findall('^GET(.*)HTTP', request.decode())
             if matches:
