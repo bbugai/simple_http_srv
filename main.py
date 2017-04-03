@@ -20,18 +20,17 @@ class Server(object):
         self.socket.listen(1)
         while True:
             client_connection, client_address = self.socket.accept()
-            request = client_connection.recv(4096)
-            response = self.request_handler(client_connection, request).handle()
+            response = self.request_handler(client_connection).handle()
             response.flush()
             client_connection.close()
 
 
 class RequestHandler(object):
 
-    def __init__(self, connection, request):
+    def __init__(self, connection):
         self.connection = connection
         self.wfile = connection.makefile('wb', 0)
-        self.request = request
+        self.request = connection.recv(4096)
 
     def handle(self):
         index = None
