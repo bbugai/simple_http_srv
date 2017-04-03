@@ -39,7 +39,8 @@ class RequestHandler(object):
             index = open(index_path, 'rb')
 
         if index:
-            return HttpResponse(self.wfile, 200, index, {'Content-Type': 'text/html'})
+            headers = {'Content-Length': str(os.fstat(index.fileno())[6]), 'Content-Type': 'text/html'}
+            return HttpResponse(self.wfile, 200, index, headers)
         else:
             matches = re.findall('^GET(.*)HTTP', self.request.decode())
             if matches:
@@ -64,13 +65,13 @@ class RequestHandler(object):
                                unquote(p + '/' if os.path.isdir(p) else p, errors='surrogatepass'))
                     for p in sorted(os.listdir(path), key=lambda a: a.lower())
                 )
-                headers = {'Content-Type': 'text/html'}
                 template = '<head><meta charset="{}"></head><h2>Directory listing for {}</h2><hr><ul>{}</ul><hr>'
                 enc = sys.getfilesystemencoding()
                 body = template.format(enc, directory_name, files).encode(enc, 'surrogatepass')
                 f = io.BytesIO()
                 f.write(body)
                 f.seek(0)
+                headers = {'Content-Type': 'text/html', 'Content-Length': str(len(body))}
                 return HttpResponse(self.wfile, 200, f, headers)
 
             content_type, _ = mimetypes.guess_type(path)
